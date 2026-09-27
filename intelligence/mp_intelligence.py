@@ -199,13 +199,32 @@ model = IsolationForest(
     random_state=42
 )
 
+
 model.fit(ml_features_scaled)
-#predicting the feature matrix values 
 
 ml_predictions = model.predict(ml_features_scaled)
+mp_df["ml_anomaly_signal"] = (
+    ml_predictions == -1
+)
+
+ml_scores = model.decision_function(ml_features_scaled)
+
+
+mp_df["ml_anomaly_score"] = ml_scores
+
+#predicting the feature matrix values 
+
 
 print("\nML predictions:")
 print(pd.Series(ml_predictions).value_counts())
+
+strongest_anomaly = (
+    mp_df[
+        mp_df["ml_anomaly_signal"]
+    ]
+    .sort_values("ml_anomaly_score")
+    .iloc[0]
+)
 
 mp_df["ml_anomaly_signal"] = (
     ml_predictions == -1
@@ -248,10 +267,12 @@ mp_df["statistical_reason"] = (
 )
 mp_df["ml_reason"] = ""
 
+
 mp_df.loc[
     mp_df["ml_anomaly_signal"],
     "ml_reason"
 ] = "Unusual combination of operational and financial activity"
+#why flagged code to check why anomly flagged based on statisticl analysis and ml_reason
 
 mp_df["why_flagged"] = (
     mp_df[
@@ -264,43 +285,7 @@ mp_df["why_flagged"] = (
         axis=1
     )
 )
-ml_scores = model.decision_function(ml_features_scaled)
 
-mp_df["ml_anomaly_score"] = ml_scores
-
-print("\nML anomaly score range:")
-print(mp_df["ml_anomaly_score"].min())
-print(mp_df["ml_anomaly_score"].max())
-print("\nML anomaly signals:")
-print(mp_df["ml_anomaly_signal"].value_counts())
-
-
-strongest_anomaly = (
-    mp_df[
-        mp_df["ml_anomaly_signal"]
-    ]
-    .sort_values("ml_anomaly_score")
-    .iloc[0]
-)
-#getting percentile values for this anomly score 
-percentile_df = pd.DataFrame(index=mp_df.index)
-
-for column in numeric_columns:
-    percentile_df[column] = (
-        mp_df[column].rank(pct=True) * 100
-    )
-
-print("\nPercentile table created:")
-print(percentile_df.shape)
-
-print("\nStrongest anomaly feature percentiles:")
-
-strongest_percentiles = (
-    percentile_df.loc[strongest_anomaly.name]
-    .sort_values(ascending=False)
-)
-
-print(strongest_percentiles)
 
 #comparing statical anomaly with ml anaomalies
 mp_df["statistical_signal_count"] = (
@@ -335,7 +320,7 @@ print(
     .head(10)
 )
 
-
+#strongest anomly section 
 print("\nStrongest ML anomaly:")
 print(
     strongest_anomaly[
@@ -356,12 +341,73 @@ for column in numeric_columns:
         round(percentile, 2),
         "percentile"
     )
+    ml_evidence = []
 
-    print("\nMedian percentile of ML anomalies:")
+for column in numeric_columns:
+    percentile = (
+        mp_df[column]
+        .rank(pct=True)[strongest_anomaly.name] * 100
+    )
 
-    mp_df["overall_signal"] = (
+    if percentile >= 95:
+        ml_evidence.append(
+            f"{column}: {round(percentile, 2)} percentile"
+        )
+
+print("\nStrongest anomaly evidence:")
+print(ml_evidence)
+#fetching anomly evidence 
+def get_ml_evidence(row):
+
+    evidence = []
+
+    for column in numeric_columns:
+
+        percentile = (
+            mp_df[column].rank(pct=True)[row.name] * 100
+        )
+
+        if percentile >= 95 or percentile <= 5:
+
+            if percentile >= 95:
+                direction = "unusually high"
+            else:
+                direction = "unusually low"
+
+            evidence.append({
+                "metric": column,
+                "value": row[column],
+                "percentile": round(percentile, 2),
+                "direction": direction
+            })
+
+    return evidence
+mp_df["ml_evidence"] =None
+
+for index, row in mp_df.iterrows():
+
+    if row["ml_anomaly_signal"]:
+        evidence = get_ml_evidence(row)
+
+        mp_df.at[index, "ml_evidence"] = evidence
+
+print("\nSample ML evidence:")
+
+print(
+    mp_df[
+        mp_df["ml_anomaly_signal"]
+    ][
+        [
+            "MP Name",
+            "ml_anomaly_score",
+            "ml_evidence"
+        ]
+    ].head(10)
+)
+
+mp_df["overall_signal"] = (
     mp_df["statistical_signal_count"] > 0
-) | mp_df["ml_anomaly_signal"]
+)|mp_df["ml_anomaly_signal"]
 
 print("\nOverall signal distribution:")
 print(mp_df["overall_signal"].value_counts())
@@ -377,7 +423,7 @@ print(
 )
 
 # comparing to ml signal percentages 
-
+'''
 percentile_data = pd.DataFrame(index=mp_df.index)
 
 for column in numeric_columns:
@@ -392,3 +438,44 @@ print(
     .median()
     .sort_values(ascending=False)
 )
+'''
+
+print("\nSample flagged MPs:")
+
+print(
+    mp_df[
+        mp_df["overall_signal"]
+    ][
+        [
+            "MP Name",
+            "statistical_reason",
+            "ml_reason",
+            "why_flagged"
+        ]
+    ].head(10)
+)
+#print("\nSample flagged MPs:")
+...
+# Save MP Intelligence results
+
+output_columns = [
+    "MP Name",
+    "Constituency",
+    "State",
+    "House",
+    "overall_signal",
+    "statistical_signal_count",
+    "statistical_reason",
+    "ml_anomaly_signal",
+    "ml_anomaly_score",
+    "ml_reason",
+    "ml_evidence"
+] + numeric_columns
+
+mp_df[output_columns].to_json(
+    "data/mp_intelligence.json",
+    orient="records",
+    indent=2
+)
+
+print("\nMP Intelligence results saved successfully")
