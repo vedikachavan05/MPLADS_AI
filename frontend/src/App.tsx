@@ -1,5 +1,45 @@
 
+import { useEffect, useState } from "react";
 function App() {
+    const [overview, setOverview] = useState<any>(null);
+    const [kpis, setKpis] = useState<any>(null);
+    const [anomalies, setAnomalies] = useState<any[]>([]);
+    const [riskFilter, setRiskFilter] = useState("All");
+    const [lokSabhaFilter, setLokSabhaFilter] = useState("All");
+    const [currentPage, setCurrentPage] = useState(1);
+      useEffect(() => {
+    fetch("http://127.0.0.1:5000/api/overview")
+      .then((response) => response.json())
+      .then((data) => {
+  console.log("Backend data:", data);
+  setOverview(data);
+})
+      .catch((error) => {
+        console.error("Error fetching overview:", error);
+      });
+  }, []);
+    useEffect(() => {
+    fetch("http://127.0.0.1:5000/api/kpis")
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("KPI data:", data);
+        setKpis(data);
+      })
+      .catch((error) => {
+        console.error("Error fetching KPIs:", error);
+      });
+  }, []);
+    useEffect(() => {
+  fetch("http://127.0.0.1:5000/api/anomalies")
+    .then((response) => response.json())
+    .then((data) => {
+      console.log("First anomaly JSON:", JSON.stringify(data[0], null, 2));
+      setAnomalies(data);
+    })
+    .catch((error) => {
+      console.error("Error fetching anomalies:", error);
+    });
+}, []);
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="bg-slate-900 text-white">
@@ -31,10 +71,10 @@ function App() {
         
 <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
   {[
-    { title: "Total Records", value: "1,110", note: "Illustrative data" },
-    { title: "17th Lok Sabha", value: "557", note: "Illustrative data" },
-    { title: "18th Lok Sabha", value: "553", note: "Illustrative data" },
-    { title: "Potential Anomalies", value: "—", note: "Detection not connected" },
+    { title: "Total Records", value: overview ? overview.total_records.toLocaleString() : "...", note: "From backend" },
+    { title: "17th Lok Sabha", value: overview ? overview["17th_lok_sabha"].toLocaleString() : "...", note: "From backend" },
+    { title: "18th Lok Sabha", value: overview ? overview["18th_lok_sabha"].toLocaleString() : "...", note: "From backend" },
+    { title: "Potential Anomalies", value: overview ? overview.potential_anomalies.toLocaleString() : "...", note: "From ML detection" },
   ].map((item) => (
     <div
       key={item.title}
@@ -68,17 +108,20 @@ function App() {
       title: "Fund Utilisation Rate",
       description: "Expenditure against allocation",
       color: "border-l-blue-500",
+      value: "fund_utilization",
     },
-    {
-      title: "Sanction Rate",
-      description: "Sanctioned against recommended",
-      color: "border-l-violet-500",
-    },
-    {
-      title: "Work Completion Rate",
-      description: "Completed against sanctioned works",
-      color: "border-l-emerald-500",
-    },
+   {
+  title: "Sanction Rate",
+  description: "Sanctioned against recommended",
+  color: "border-l-violet-500",
+  value: "sanction_rate",
+},
+  {
+  title: "Work Completion Rate",
+  description: "Completed against sanctioned works",
+  color: "border-l-emerald-500",
+  value: "work_completion_rate",
+},
   ].map((item) => (
     <div
       key={item.title}
@@ -88,10 +131,10 @@ function App() {
         {item.title}
       </p>
       <p className="mt-3 text-3xl font-bold text-slate-900">
-        --
+        {kpis ? `${kpis["17th_lok_sabha"][item.value]}%` : "..."}
       </p>
       <p className="mt-2 text-xs text-slate-400">
-        Waiting for backend data
+        from backend
       </p>
       <p className="mt-1 text-xs text-slate-500">
         {item.description}
@@ -113,7 +156,7 @@ function App() {
       Flagged Records
     </h4>
     <p className="mt-1 text-sm text-slate-500">
-      Example layout — detection data not connected
+      ML-detected records requiring verification
     </p>
   </div>
 
@@ -127,40 +170,33 @@ function App() {
           <th className="px-5 py-3 font-medium">Status</th>
         </tr>
       </thead>
-      <tbody className="divide-y divide-slate-100">
-        <tr>
-          <td className="px-5 py-4 font-medium text-slate-800">
-            Sample record 01
-          </td>
-          <td className="px-5 py-4 text-slate-600">
-            Unusual utilisation pattern
-          </td>
-          <td className="px-5 py-4">
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-              Review
-            </span>
-          </td>
-          <td className="px-5 py-4 text-slate-500">
-            Pending
-          </td>
-        </tr>
-        <tr>
-          <td className="px-5 py-4 font-medium text-slate-800">
-            Sample record 02
-          </td>
-          <td className="px-5 py-4 text-slate-600">
-            Unusual sanction pattern
-          </td>
-          <td className="px-5 py-4">
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-              Review
-            </span>
-          </td>
-          <td className="px-5 py-4 text-slate-500">
-            Pending
-          </td>
-        </tr>
-      </tbody>
+     <tbody className="divide-y divide-slate-100">
+  {anomalies.slice(0, 10).map((anomaly, index) => (
+    <tr key={index}>
+      <td className="px-5 py-4 font-medium text-slate-800">
+        {anomaly.constituency_name}
+      </td>
+
+      <td className="px-5 py-4 text-slate-600">
+        {anomaly.anomaly_reason}
+      </td>
+
+      <td className="px-5 py-4">
+        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+         {anomaly.anomaly_score < -0.2
+  ? "High"
+  : anomaly.anomaly_score < -0.1
+  ? "Medium"
+  : "Low"}
+        </span>
+      </td>
+
+      <td className="px-5 py-4 text-slate-500">
+        {anomaly.lok_sabha}
+      </td>
+    </tr>
+  ))}
+</tbody>
     </table>
   </div>
 </div>
