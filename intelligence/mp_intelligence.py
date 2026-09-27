@@ -1,3 +1,4 @@
+from sklearn.preprocessing import StandardScaler
 import pandas as pd
 
 
@@ -164,3 +165,28 @@ mp_df["signal_count"] = (
 
 print("\nSignal count distribution:")
 print(mp_df["signal_count"].value_counts().sort_index())
+
+#was finding features correlation
+'''
+print("\nFeature Correlation:")
+print(
+    mp_df[numeric_columns].corr().round(2)
+)
+'''
+ml_features = mp_df[
+    numeric_columns
+].copy()
+
+print("\nML feature shape:")
+print(ml_features.shape)
+
+print("\nMissing values in ML features:")
+print(ml_features.isnull().sum())
+
+#using standscaler for LOF as it needs scaling to avoind disortion 
+scaler = StandardScaler()
+
+ml_features_scaled = scaler.fit_transform(ml_features)
+
+print("\nScaled ML feature shape:")
+print(ml_features_scaled.shape)
