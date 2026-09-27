@@ -68,3 +68,37 @@ print(mp_df["Balance Not Yet Paid to Vendors (₹)"].describe())
 
 print("\nTransaction Count statistics:")
 print(mp_df["Transaction Count"].describe())
+
+#Adding IQR to find overall utlization rate 
+
+q1 = mp_df["Utilization %"].quantile(0.25)
+q3 = mp_df["Utilization %"].quantile(0.75)
+
+iqr = q3 - q1
+
+lower_bound = q1 - 1.5 * iqr
+upper_bound = q3 + 1.5 * iqr
+
+#printed IQR for finding utlization outliers in dataset 
+
+'''
+utilization_outliers = mp_df[
+    (mp_df["Utilization %"] < lower_bound) |
+    (mp_df["Utilization %"] > upper_bound)
+]
+
+print("\nUtilization IQR:")
+print("Q1:", q1)
+print("Q3:", q3)
+print("IQR:", iqr)
+print("Lower Bound:", lower_bound)
+print("Upper Bound:", upper_bound)
+print("Outlier MPs:", len(utilization_outliers))
+'''
+
+mp_df["utilization_signal"] = (
+    mp_df["Utilization %"] < lower_bound
+)
+
+print("\nUtilization signals:")
+print(mp_df["utilization_signal"].value_counts())
