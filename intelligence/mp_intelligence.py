@@ -1,3 +1,4 @@
+from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
 
@@ -190,3 +191,204 @@ ml_features_scaled = scaler.fit_transform(ml_features)
 
 print("\nScaled ML feature shape:")
 print(ml_features_scaled.shape)
+
+#creating an isolation forest
+model = IsolationForest(
+    n_estimators=200,
+    contamination="auto",
+    random_state=42
+)
+
+model.fit(ml_features_scaled)
+#predicting the feature matrix values 
+
+ml_predictions = model.predict(ml_features_scaled)
+
+print("\nML predictions:")
+print(pd.Series(ml_predictions).value_counts())
+
+mp_df["ml_anomaly_signal"] = (
+    ml_predictions == -1
+)
+mp_df["utilization_reason"] = ""
+#implementing loc to find individual anomly 
+mp_df.loc[
+    mp_df["utilization_signal"],
+    "utilization_reason"
+] = "Low utilization"
+
+mp_df["pending_payment_reason"] = ""
+
+mp_df.loc[
+    mp_df["pending_payment_signal"],
+    "pending_payment_reason"
+] = "High pending payments"
+
+mp_df["balance_reason"] = ""
+
+mp_df.loc[
+    mp_df["balance_signal"],
+    "balance_reason"
+] = "High unpaid vendor balance"
+
+mp_df["statistical_reason"] = (
+    mp_df[
+        [
+            "utilization_reason",
+            "pending_payment_reason",
+            "balance_reason"
+        ]
+    ]
+    .apply(
+        lambda row: ", ".join(
+            value for value in row if value
+        ),
+        axis=1
+    )
+)
+mp_df["ml_reason"] = ""
+
+mp_df.loc[
+    mp_df["ml_anomaly_signal"],
+    "ml_reason"
+] = "Unusual combination of operational and financial activity"
+
+mp_df["why_flagged"] = (
+    mp_df[
+        ["statistical_reason", "ml_reason"]
+    ]
+    .apply(
+        lambda row: ", ".join(
+            value for value in row if value
+        ),
+        axis=1
+    )
+)
+ml_scores = model.decision_function(ml_features_scaled)
+
+mp_df["ml_anomaly_score"] = ml_scores
+
+print("\nML anomaly score range:")
+print(mp_df["ml_anomaly_score"].min())
+print(mp_df["ml_anomaly_score"].max())
+print("\nML anomaly signals:")
+print(mp_df["ml_anomaly_signal"].value_counts())
+
+
+strongest_anomaly = (
+    mp_df[
+        mp_df["ml_anomaly_signal"]
+    ]
+    .sort_values("ml_anomaly_score")
+    .iloc[0]
+)
+#getting percentile values for this anomly score 
+percentile_df = pd.DataFrame(index=mp_df.index)
+
+for column in numeric_columns:
+    percentile_df[column] = (
+        mp_df[column].rank(pct=True) * 100
+    )
+
+print("\nPercentile table created:")
+print(percentile_df.shape)
+
+print("\nStrongest anomaly feature percentiles:")
+
+strongest_percentiles = (
+    percentile_df.loc[strongest_anomaly.name]
+    .sort_values(ascending=False)
+)
+
+print(strongest_percentiles)
+
+#comparing statical anomaly with ml anaomalies
+mp_df["statistical_signal_count"] = (
+    mp_df["utilization_signal"].astype(int)
+    + mp_df["pending_payment_signal"].astype(int)
+    + mp_df["balance_signal"].astype(int)
+)
+
+print("\nStatistical vs ML:")
+print(
+    pd.crosstab(
+        mp_df["statistical_signal_count"],
+        mp_df["ml_anomaly_signal"]
+    )
+)
+
+print("\nML anomaly feature comparison:")
+print(
+    mp_df.groupby("ml_anomaly_signal")[numeric_columns]
+    .median()
+    .T
+)
+
+print("\nMost unusual ML cases:")
+print(
+    mp_df[
+        mp_df["ml_anomaly_signal"]
+    ][
+        ["MP Name", "Constituency", "House", "ml_anomaly_score"]
+    ]
+    .sort_values("ml_anomaly_score")
+    .head(10)
+)
+
+
+print("\nStrongest ML anomaly:")
+print(
+    strongest_anomaly[
+        ["MP Name", "Constituency", "House"] + numeric_columns
+    ]
+)
+print("\nStrongest anomaly percentiles:")
+
+for column in numeric_columns:
+    percentile = (
+        mp_df[column]
+        .rank(pct=True)[strongest_anomaly.name] * 100
+    )
+
+    print(
+        column,
+        "→",
+        round(percentile, 2),
+        "percentile"
+    )
+
+    print("\nMedian percentile of ML anomalies:")
+
+    mp_df["overall_signal"] = (
+    mp_df["statistical_signal_count"] > 0
+) | mp_df["ml_anomaly_signal"]
+
+print("\nOverall signal distribution:")
+print(mp_df["overall_signal"].value_counts())
+
+print("\nOverall signal count distribution:")
+
+print(
+    mp_df[
+        mp_df["overall_signal"]
+    ][
+        ["statistical_signal_count", "ml_anomaly_signal"]
+    ].value_counts()
+)
+
+# comparing to ml signal percentages 
+
+percentile_data = pd.DataFrame(index=mp_df.index)
+
+for column in numeric_columns:
+    percentile_data[column] = (
+        mp_df[column].rank(pct=True) * 100
+    )
+
+print(
+    percentile_data[
+        mp_df["ml_anomaly_signal"]
+    ][numeric_columns]
+    .median()
+    .sort_values(ascending=False)
+)
