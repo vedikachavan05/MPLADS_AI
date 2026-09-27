@@ -81,12 +81,12 @@ upper_bound = q3 + 1.5 * iqr
 
 #printed IQR for finding utlization outliers in dataset 
 
-'''
+
 utilization_outliers = mp_df[
     (mp_df["Utilization %"] < lower_bound) |
     (mp_df["Utilization %"] > upper_bound)
 ]
-
+'''
 print("\nUtilization IQR:")
 print("Q1:", q1)
 print("Q3:", q3)
@@ -102,3 +102,65 @@ mp_df["utilization_signal"] = (
 
 print("\nUtilization signals:")
 print(mp_df["utilization_signal"].value_counts())
+'''
+q1_completion = mp_df["Completion Rate %"].quantile(0.25)
+q3_completion = mp_df["Completion Rate %"].quantile(0.75)
+
+iqr_completion = q3_completion - q1_completion
+
+lower_bound_completion = q1_completion - 1.5 * iqr_completion
+
+print("\nCompletion Rate IQR:")
+print("Q1:", q1_completion)
+print("Q3:", q3_completion)
+print("Lower Bound:", lower_bound_completion)
+'''
+# finding Uppper BOund for pending payments 
+q1_pending = mp_df["Pending Payments"].quantile(0.25)
+q3_pending = mp_df["Pending Payments"].quantile(0.75)
+
+iqr_pending = q3_pending - q1_pending
+
+upper_bound_pending = q3_pending + 1.5 * iqr_pending
+
+print("\nPending Payments IQR:")
+print("Q1:", q1_pending)
+print("Q3:", q3_pending)
+print("Upper Bound:", upper_bound_pending)
+
+mp_df["pending_payment_signal"] = (
+    mp_df["Pending Payments"] > upper_bound_pending
+)
+
+print("\nPending Payment signals:")
+print(mp_df["pending_payment_signal"].value_counts())
+
+
+#finding remaining vendor balances
+q1_balance = mp_df["Balance Not Yet Paid to Vendors (₹)"].quantile(0.25)
+q3_balance = mp_df["Balance Not Yet Paid to Vendors (₹)"].quantile(0.75)
+
+iqr_balance = q3_balance - q1_balance
+
+upper_bound_balance = q3_balance + 1.5 * iqr_balance
+
+print("\nBalance IQR:")
+print("Q1:", q1_balance)
+print("Q3:", q3_balance)
+print("Upper Bound:", upper_bound_balance)
+
+mp_df["balance_signal"] = (
+    mp_df["Balance Not Yet Paid to Vendors (₹)"] > upper_bound_balance
+)
+
+print("\nBalance signals:")
+print(mp_df["balance_signal"].value_counts())
+
+mp_df["signal_count"] = (
+    mp_df["utilization_signal"].astype(int)
+    + mp_df["pending_payment_signal"].astype(int)
+    + mp_df["balance_signal"].astype(int)
+)
+
+print("\nSignal count distribution:")
+print(mp_df["signal_count"].value_counts().sort_index())
