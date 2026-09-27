@@ -6,7 +6,7 @@ function App() {
     const [anomalies, setAnomalies] = useState<any[]>([]);
     const [riskFilter, setRiskFilter] = useState("All");
     const [lokSabhaFilter, setLokSabhaFilter] = useState("All");
-    const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
       useEffect(() => {
     fetch("http://127.0.0.1:5000/api/overview")
       .then((response) => response.json())
@@ -40,6 +40,53 @@ function App() {
       console.error("Error fetching anomalies:", error);
     });
 }, []);
+  // GET RISK LEVEL
+const getRiskLevel = (score: number) => {
+  const numericScore = Number(score);
+
+  if (numericScore < -0.2) {
+    return "High";
+  } else if (numericScore < -0.1) {
+    return "Medium";
+  } else {
+    return "Low";
+  }
+};
+
+// FILTER ANOMALIES
+const filteredAnomalies = anomalies.filter((anomaly) => {
+
+  const risk = getRiskLevel(anomaly.anomaly_score);
+
+  const matchesRisk =
+    riskFilter === "All" || risk === riskFilter;
+
+  const lokSabha = String(anomaly.lok_sabha).toLowerCase();
+
+  const matchesLokSabha =
+    lokSabhaFilter === "All" ||
+    lokSabha.includes(lokSabhaFilter.toLowerCase());
+
+  return matchesRisk && matchesLokSabha;
+});
+// PAGINATION
+const itemsPerPage = 10;
+
+const totalPages = Math.ceil(
+  filteredAnomalies.length / itemsPerPage
+);
+
+const startIndex = (currentPage - 1) * itemsPerPage;
+
+const paginatedAnomalies = filteredAnomalies.slice(
+  startIndex,
+  startIndex + itemsPerPage
+);
+
+// Reset page when filter changes
+useEffect(() => {
+  setCurrentPage(1);
+}, [riskFilter, lokSabhaFilter]);
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <header className="bg-slate-900 text-white">
@@ -152,6 +199,45 @@ function App() {
 </div>
 <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
   <div className="border-b border-slate-200 px-5 py-4">
+    {/* FILTERS */}
+<div className="flex flex-wrap gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4">
+
+  {/* RISK FILTER */}
+  <div>
+    <label className="mb-1 block text-xs font-semibold text-slate-600">
+      Risk Level
+    </label>
+
+    <select
+      value={riskFilter}
+      onChange={(e) => setRiskFilter(e.target.value)}
+      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+    >
+      <option value="All">All</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+  </div>
+
+  {/* LOK SABHA FILTER */}
+  <div>
+    <label className="mb-1 block text-xs font-semibold text-slate-600">
+      Lok Sabha
+    </label>
+
+    <select
+      value={lokSabhaFilter}
+      onChange={(e) => setLokSabhaFilter(e.target.value)}
+      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+    >
+      <option value="All">All</option>
+      <option value="17th">17th</option>
+      <option value="18th">18th</option>
+    </select>
+  </div>
+
+</div>
     <h4 className="font-semibold text-slate-800">
       Flagged Records
     </h4>
@@ -171,7 +257,7 @@ function App() {
         </tr>
       </thead>
      <tbody className="divide-y divide-slate-100">
-  {anomalies.slice(0, 10).map((anomaly, index) => (
+  {paginatedAnomalies.map((anomaly, index)  => (
     <tr key={index}>
       <td className="px-5 py-4 font-medium text-slate-800">
         {anomaly.constituency_name}
@@ -182,12 +268,18 @@ function App() {
       </td>
 
       <td className="px-5 py-4">
-        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-         {anomaly.anomaly_score < -0.2
-  ? "High"
-  : anomaly.anomaly_score < -0.1
-  ? "Medium"
-  : "Low"}
+        <span className="rounded-full  px-3 py-1 text-xs font-semibold text-amber-700">
+        <span
+  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+    getRiskLevel(anomaly.anomaly_score) === "High"
+      ? "bg-red-100 text-red-700"
+      : getRiskLevel(anomaly.anomaly_score) === "Medium"
+      ? "bg-orange-100 text-orange-700"
+      : "bg-yellow-100 text-yellow-700"
+  }`}
+>
+  {getRiskLevel(anomaly.anomaly_score)}
+</span>
         </span>
       </td>
 
@@ -198,7 +290,38 @@ function App() {
   ))}
 </tbody>
     </table>
+
   </div>
+  {/* PAGINATION */}
+{totalPages > 1 && (
+  <div className="flex items-center justify-between border-t border-slate-200 px-5 py-4">
+
+    <button
+      onClick={() =>
+        setCurrentPage((page) => page - 1)
+      }
+      disabled={currentPage === 1}
+      className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      Previous
+    </button>
+
+    <span className="text-sm text-slate-500">
+      Page {currentPage} of {totalPages}
+    </span>
+
+    <button
+      onClick={() =>
+        setCurrentPage((page) => page + 1)
+      }
+      disabled={currentPage === totalPages}
+      className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      Next
+    </button>
+
+  </div>
+)}
 </div>
       </main>
     </div>
