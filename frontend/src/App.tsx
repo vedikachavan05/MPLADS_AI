@@ -693,7 +693,7 @@ function App() {
                       >
 
                         {mpFinancialPieData.map(
-                          (entry, index) => (
+                          (_, index) => (
 
                             <Cell
                               key={`cell-${index}`}
@@ -710,11 +710,9 @@ function App() {
                       </Pie>
 
                       <Tooltip
-                        formatter={(value: number) =>
-                          `₹${(
-                            value / 1000000000
-                          ).toFixed(2)}B`
-                        }
+                        formatter={(value) =>
+  `₹${(Number(value) / 10000000).toFixed(2)} Cr`
+}
                       />
 
                     </PieChart>
