@@ -119,5 +119,17 @@ def anomalies():
         records.to_dict(orient="records")
     )
 
+@app.route("/api/mp-intelligence")
+def mp_intelligence():
+    mp_data = pd.read_json(
+        "data/mp_intelligence.json"
+    )
+
+    mp_data = mp_data.fillna("Not Available")
+
+    return jsonify(
+        mp_data.to_dict(orient="records")
+    )
+    
 if __name__ == "__main__":
     app.run(debug=True)
