@@ -43,7 +43,7 @@ function App() {
   // =========================
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/overview")
+    fetch("https://mplads-ai-jovn.onrender.com/api/overview")
       .then((response) => response.json())
       .then((data) => {
         console.log("Backend data:", data);
@@ -55,7 +55,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/kpis")
+    fetch("https://mplads-ai-jovn.onrender.com/api/kpis")
       .then((response) => response.json())
       .then((data) => {
         console.log("KPI data:", data);
@@ -67,7 +67,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/anomalies")
+    fetch("https://mplads-ai-jovn.onrender.com/api/anomalies")
       .then((response) => response.json())
       .then((data) => {
         console.log(
@@ -86,7 +86,7 @@ function App() {
   // =========================
 
   useEffect(() => {
-    fetch("http://127.0.0.1:5000/api/mp-intelligence")
+    fetch("https://mplads-ai-jovn.onrender.com/api/mp-intelligence")
       .then((response) => response.json())
       .then((data) => {
         console.log("MP Intelligence data:", data);
